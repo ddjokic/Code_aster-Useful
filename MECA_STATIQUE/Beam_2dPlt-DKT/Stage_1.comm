@@ -1,0 +1,64 @@
+DEBUT(LANG='EN')
+
+mesh = LIRE_MAILLAGE(FORMAT='MED',
+                     UNITE=20)
+
+mesh = MODI_MAILLAGE(reuse=mesh,
+                     MAILLAGE=mesh,
+                     ORIE_PEAU_3D=_F(GROUP_MA=('Flange', )))
+
+model = AFFE_MODELE(AFFE=_F(MODELISATION=('DKT', ),
+                            PHENOMENE='MECANIQUE',
+                            TOUT='OUI'),
+                    MAILLAGE=mesh)
+
+elemprop = AFFE_CARA_ELEM(COQUE=(_F(EPAIS=15.0,
+                                    GROUP_MA=('top', 'bottom')),
+                                 _F(EPAIS=18.0,
+                                    GROUP_MA=('Flange', ),
+                                    VECTEUR=(0.0, 1.0, 0.0))),
+                          MODELE=model)
+
+steel = DEFI_MATERIAU(ELAS=_F(E=2000000000.0,
+                              NU=0.3))
+
+fieldma0 = AFFE_MATERIAU(AFFE=_F(MATER=(steel, ),
+                                 TOUT='OUI'),
+                         MODELE=model)
+
+BC = AFFE_CHAR_MECA(DDL_IMPO=(_F(DRX=0.0,
+                                 DRY=0.0,
+                                 DRZ=0.0,
+                                 DX=0.0,
+                                 DY=0.0,
+                                 DZ=0.0,
+                                 GROUP_NO=('Fix', )),
+                              _F(DX=0.0,
+                                 DZ=0.0,
+                                 GROUP_NO=('SmallFix', ))),
+                    MODELE=model)
+
+load0 = AFFE_CHAR_MECA(FORCE_NODALE=_F(FZ=-10000.0,
+                                       GROUP_NO=('Loadnd', )),
+                       MODELE=model)
+
+reslin0 = MECA_STATIQUE(CARA_ELEM=elemprop,
+                        CHAM_MATER=fieldma0,
+                        EXCIT=(_F(CHARGE=BC),
+                               _F(CHARGE=load0)),
+                        MODELE=model)
+
+reslin0 = CALC_CHAMP(reuse=reslin0,
+                     CARA_ELEM=elemprop,
+                     CHAM_MATER=fieldma0,
+                     CONTRAINTE=('SIGM_ELGA', 'SIGM_ELNO'),
+                     CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
+                     DEFORMATION=('DEGE_ELGA', 'DEGE_ELNO'),
+                     MODELE=model,
+                     RESULTAT=reslin0)
+
+IMPR_RESU(FORMAT='MED',
+          RESU=_F(RESULTAT=reslin0),
+          UNITE=80)
+
+FIN()
